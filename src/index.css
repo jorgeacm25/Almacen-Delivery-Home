@@ -3,3 +3,81 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+  html {
+    font-size: 17px;
+  }
+
+  body {
+    @apply text-gray-900 leading-relaxed;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    @apply text-base;
+  }
+
+  button {
+    min-height: 44px;
+  }
+}
+
+/* Animaciones */
+@layer components {
+  .fade-in {
+    @apply animate-fade-in;
+  }
+
+  .slide-in {
+    @apply animate-slide-in;
+  }
+
+  .transition-smooth {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
+
+/* Stock crítico */
+.stock-critico {
+  @apply bg-red-100 text-red-800;
+}
+
+.stock-bajo {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.stock-normal {
+  @apply bg-green-100 text-green-800;
+}
+
+.alto-contraste-card {
+  @apply bg-white border-2 border-orange-400;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes spin-slow {
+  to {
+    transform: rotate(360deg);
+  }
+}

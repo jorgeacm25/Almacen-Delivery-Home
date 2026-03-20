@@ -1,7 +1,8 @@
 {
-  "name": "citas-react",
+  "name": "almacen-delivery-home",
   "private": true,
   "version": "0.0.0",
+  "description": "Sistema de Gestión de Inventario para Delivery Home",
   "type": "module",
   "scripts": {
     "dev": "vite",

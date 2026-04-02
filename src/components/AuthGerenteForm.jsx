@@ -18,29 +18,45 @@ const AuthGerenteForm = ({ onAuthExitoso, onCancelar }) => {
     async () => {}
   );
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setGeneralError('');
-    
-    if (!values.username || !values.password) {
-      setGeneralError('Todos los campos son obligatorios');
-      return;
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+  setGeneralError('');
+  
+  if (!values.username || !values.password) {
+    setGeneralError('Todos los campos son obligatorios');
+    return;
+  }
+  
+  setLoading(true);
+
+  try {
+    const url = 'http://localhost:5228/api/admin/login';
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userName: values.username,
+        password: values.password,
+      }),
+    });
+
+    if (response.ok) {
+      // ✅ El token viene como texto plano
+      const token = await response.text();
+      console.log('Token guardado:', token); // Verifica que no sea vacío
+      localStorage.setItem('token', token);
+      onAuthExitoso();
+    } else {
+      const errorText = await response.text();
+      setGeneralError(errorText || 'Credenciales incorrectas');
     }
-    
-    setLoading(true);
-    
-    // Simular validación de gerente
-    setTimeout(() => {
-      const esGerente = verificarGerente(values.username, values.password);
-      
-      if (esGerente) {
-        onAuthExitoso();
-      } else {
-        setGeneralError('Credenciales incorrectas o no tienes permisos de gerente');
-      }
-      setLoading(false);
-    }, 500);
-  };
+  } catch (error) {
+    console.error('Error de red:', error);
+    setGeneralError('Error de conexión con el servidor');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="p-6 sm:p-8">

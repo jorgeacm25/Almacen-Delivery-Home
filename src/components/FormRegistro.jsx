@@ -12,7 +12,7 @@ import { useForm } from '../hooks/useForm';
  * @param {Function} onRegistroExitoso - Callback cuando registro exitoso
  * @param {Function} onCancelar - Callback para cancelar
  * @param {Function} onCambiarALogin - Callback para ir a login (opcional)
- * @param {Function} registroFn - Función personalizada de registro
+ * @param {Function} registroFn - Función personalizada de registro (opcional)
  */
 const FormRegistro = ({ 
   tipo = 'trabajador',
@@ -40,7 +40,8 @@ const FormRegistro = ({
         password: '********',
         confirmPassword: '********'
       },
-      minPasswordLength: 4
+      minPasswordLength: 4,
+      endpoint: 'http://localhost:5228/user'
     },
     chef: {
       title: 'Crear Cuenta',
@@ -57,7 +58,8 @@ const FormRegistro = ({
         password: '********',
         confirmPassword: '********'
       },
-      minPasswordLength: 6
+      minPasswordLength: 6,
+      endpoint: 'http://localhost:5228/user' // Cambiar si el endpoint para chef es otro
     }
   };
 
@@ -110,6 +112,60 @@ const FormRegistro = ({
     setGeneralError
   } = useForm(initialValues, async () => {});
 
+  // ========== FUNCIÓN DE REGISTRO POR DEFECTO (CON TOKEN) ==========
+  const defaultRegistroFn = async (formValues, setErrorCallback) => {
+    try {
+      // 1. Obtener token del localStorage
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay sesión activa. Inicie sesión nuevamente.');
+      }
+
+      // 2. Mapear campos al formato que espera el backend
+      const payload = {
+        fullName: formValues.nombre,
+        userName: tipo === 'trabajador' ? formValues.username : formValues.email, // Ajusta según tu backend
+        password: formValues.password
+      };
+
+      // 3. Realizar la petición
+      const response = await fetch(currentConfig.endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      // 4. Manejar respuesta
+      if (response.ok) {
+        let data;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          data = await response.text();
+        }
+        return { success: true, user: data };
+      } else {
+        let errorMsg;
+        try {
+          errorMsg = await response.text();
+        } catch {
+          errorMsg = `Error ${response.status}: ${response.statusText}`;
+        }
+        return { success: false, error: errorMsg };
+      }
+    } catch (error) {
+      console.error('Error en registro:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // Usar la función pasada por prop o la por defecto
+  const handleRegistro = registroFn || defaultRegistroFn;
+
   const handleSubmit = (e) => {
     e.preventDefault();
     setGeneralError('');
@@ -117,7 +173,6 @@ const FormRegistro = ({
     // Validar formulario
     const validationErrors = validateFormRegistro(values);
     if (Object.keys(validationErrors).length > 0) {
-      // Mostrar el primer error
       const firstError = Object.values(validationErrors)[0];
       setGeneralError(firstError);
       return;
@@ -125,20 +180,19 @@ const FormRegistro = ({
 
     setLoading(true);
 
-    try {
-      // Ejecutar función de registro
-      registroFn(values, setGeneralError).then((resultado) => {
+    handleRegistro(values, setGeneralError)
+      .then((resultado) => {
         if (resultado.success) {
           onRegistroExitoso(resultado.user);
         } else {
           setGeneralError(resultado.error || 'Error al registrar');
         }
         setLoading(false);
+      })
+      .catch((error) => {
+        setGeneralError(error.message);
+        setLoading(false);
       });
-    } catch (error) {
-      setGeneralError(error.message);
-      setLoading(false);
-    }
   };
 
   return (

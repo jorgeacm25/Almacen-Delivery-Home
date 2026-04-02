@@ -4,7 +4,9 @@ import InterfazSalida from './components/InterfazSalida.jsx'
 import InterfazHistorial from './components/InterfazHistorial.jsx'
 import AuthGerenteForm from './components/AuthGerenteForm.jsx'
 import RegistroTrabajadorForm from './components/RegistroTrabajadorForm.jsx'
-import FormLogin from './components/FormLogin.jsx'
+// Eliminamos la importación de FormLogin
+// import FormLogin from './components/FormLogin.jsx'
+import LoginTrabajadorForm from './components/LoginTrabajadorForm.jsx'  // 👈 NUEVO
 import ModalAgregarCantidad from './components/ModalAgregarCantidad.jsx'
 import ModalModificarProducto from './components/ModalModificarProducto.jsx'
 import ModalInfoProducto from './components/ModalInfoProducto.jsx'
@@ -22,7 +24,8 @@ import fondo from './assets/fondo.png'
 import logoFondo from './assets/LogoFondo.png'
 import { productosData, combosData } from './data/almacenData.js'
 import { historialData } from './data/historialData.js'
-import { buscarUsuario } from './data/usuarios.js'
+// Ya no necesitamos buscarUsuario porque el login se hace con fetch
+// import { buscarUsuario } from './data/usuarios.js'
 
 const obtenerCategoriaAutomatica = (nombre = '') => {
   const n = nombre.toLowerCase();
@@ -99,7 +102,6 @@ function App() {
   const [historial, setHistorial] = useState(historialData);
 
   // Hook para detectar alertas de stock y vencimiento
-  // umbralStockMinimo: 50, diasAlerta: 7 (default)
   const alertas = useStockAlerts(productos, 50, 7);
 
   // Función para agregar al historial
@@ -123,6 +125,7 @@ function App() {
   };
 
   const handleLoginTrabajador = (datosUsuario) => {
+    // datosUsuario contiene: { nombre, token, username }
     setUsuario(datosUsuario);
     setMostrarModalAuth(false);
     setPasoRegistro('');
@@ -145,6 +148,7 @@ function App() {
     setUsuario(null);
     setSeccionActiva(null);
     setMostrarFormulario(false);
+    localStorage.removeItem('token'); // Limpiar token al cerrar sesión
   };
 
   const abrirRegistro = () => {
@@ -157,20 +161,8 @@ function App() {
     setMostrarModalAuth(true);
   };
 
-  // Función de autenticación para trabajadores
-  const autenticarTrabajador = async (formValues) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const usuario = buscarUsuario(formValues.username, formValues.password);
-        if (usuario) {
-          handleLoginTrabajador(usuario);
-          resolve({ success: true, user: usuario });
-        } else {
-          resolve({ success: false, error: 'Usuario o contraseña incorrectos' });
-        }
-      }, 500);
-    });
-  };
+  // Ya no necesitamos autenticarTrabajador porque LoginTrabajadorForm maneja el fetch
+  // La función ha sido eliminada.
 
   const handleCombosClick = () => {
     setSeccionActiva('combos');
@@ -446,7 +438,7 @@ function App() {
     .map(([cliente]) => cliente)
     .slice(0, 15);
 
-  // Filtrar productos por texto, categoría, proveedor, vencimiento y rango de stock
+  // Filtrar productos
   const productosFiltrados = productosEnriquecidos.filter((producto) => {
     const termino = terminoBusqueda.toLowerCase().trim();
     const coincideTexto =
@@ -495,7 +487,6 @@ function App() {
     return acc;
   }, {});
 
-  // Función para formatear fecha
   const formatearFecha = (fecha) => {
     if (!fecha) return '—';
     const [year, month, day] = fecha.split('-');
@@ -566,13 +557,12 @@ function App() {
           seccionActiva={seccionActiva}
         />
         
-        {/* Alertas de Stock y Vencimiento - Solo para usuarios autenticados */}
+        {/* Alertas de Stock y Vencimiento */}
         {usuario && alertas.total > 0 && (
           <div className="mx-auto mt-4 mb-4 px-4 max-w-6xl">
             <AlertasNotificaciones 
               alertas={alertas}
               onVerProducto={(alerta) => {
-                // Buscar el producto y abrirlo
                 const producto = productos.find(p => p.id === alerta.id);
                 if (producto) {
                   if (alerta.tipo === 'stock') {
@@ -619,16 +609,14 @@ function App() {
                 />
               )}
               
+              {/* 🔁 AQUÍ ESTÁ EL CAMBIO: Usamos LoginTrabajadorForm en lugar de FormLogin */}
               {pasoRegistro === 'login' && (
-                <FormLogin 
-                  tipo="trabajador"
+                <LoginTrabajadorForm
                   onLogin={handleLoginTrabajador}
                   onCancelar={() => {
                     setMostrarModalAuth(false);
                     setPasoRegistro('');
                   }}
-                  authFn={autenticarTrabajador}
-                  subtitle="Acceso para trabajadores"
                 />
               )}
             </div>
@@ -801,7 +789,7 @@ function App() {
                 </div>
               </div>
               
-              {/* Tabla de productos con scroll */}
+              {/* Tabla de productos */}
               <div className="overflow-x-auto">
                 <div className="max-h-[400px] overflow-y-auto border-2 border-orange-100 rounded-lg">
                   <table className="w-full border-collapse">
@@ -884,7 +872,7 @@ function App() {
                                   </div>
                                 </td>
                               </tr>
-                            );
+                              );
                             })}
                           </Fragment>
                         ))

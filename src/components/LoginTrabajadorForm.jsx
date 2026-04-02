@@ -1,26 +1,64 @@
 import { useState } from 'react';
-import { buscarUsuario } from '../data/usuarios';
 
 const LoginTrabajadorForm = ({ onLogin, onCancelar }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setError('');
+
     if (!username || !password) {
       setError('Todos los campos son obligatorios');
       return;
     }
-    
-    // Buscar usuario
-    const usuario = buscarUsuario(username, password);
-    
-    if (usuario) {
-      onLogin(usuario);
-    } else {
-      setError('Usuario o contraseña incorrectos');
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('http://localhost:5228/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userName: username, password: password })
+      });
+
+      if (response.ok) {
+        let token;
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          token = data.token || data;
+        } else {
+          token = await response.text();
+        }
+
+        if (!token) throw new Error('No se recibió token');
+
+        localStorage.setItem('token', token);
+
+        // Crear objeto usuario que el callback espera (con nombre)
+        const usuario = {
+          nombre: username,   // App espera 'nombre'
+          token: token,
+          username: username
+        };
+        onLogin(usuario);
+      } else {
+        let errorMsg;
+        try {
+          errorMsg = await response.text();
+        } catch {
+          errorMsg = `Error ${response.status}`;
+        }
+        setError(errorMsg || 'Credenciales incorrectas');
+      }
+    } catch (error) {
+      console.error(error);
+      setError('Error de conexión con el servidor');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -51,6 +89,7 @@ const LoginTrabajadorForm = ({ onLogin, onCancelar }) => {
             className="border-2 border-white-200 w-full p-3 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition-all"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            disabled={loading}
           />
         </div>
         
@@ -65,6 +104,7 @@ const LoginTrabajadorForm = ({ onLogin, onCancelar }) => {
             className="border-2 border-white-200 w-full p-3 text-sm rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-200 focus:border-orange-400 transition-all"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
           />
         </div>
         
@@ -73,23 +113,19 @@ const LoginTrabajadorForm = ({ onLogin, onCancelar }) => {
             type="button"
             className="w-full px-4 py-3 border-2 border-red-500 bg-red-50 text-red-700 font-bold rounded-lg hover:bg-red-100 transition-all duration-300 text-sm cursor-pointer"
             onClick={onCancelar}
+            disabled={loading}
           >
             Cancelar
           </button>
           <button 
             type="submit"
             className="w-full px-4 py-3 border-2 border-green-500 bg-green-50 text-green-700 font-bold rounded-lg hover:bg-green-100 transition-all duration-300 text-sm cursor-pointer"
+            disabled={loading}
           >
-            Entrar
+            {loading ? 'Verificando...' : 'Entrar'}
           </button>
         </div>
       </form>
-      
-      <div className="mt-4 p-3 bg-gray-100 rounded-lg text-xs text-gray-600">
-        <p className="font-bold">Trabajadores de prueba:</p>
-        <p>Usuario: juan / Contraseña: 123456</p>
-        <p>Usuario: maria / Contraseña: 123456</p>
-      </div>
     </div>
   );
 };

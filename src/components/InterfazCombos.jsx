@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const InterfazCombos = ({ combos, setCombos, productos, onModificarCombo, onAgregarAlHistorial, onAbrirNuevoCombo }) => {
   const [comboSeleccionado, setComboSeleccionado] = useState(null);
@@ -7,7 +7,70 @@ const InterfazCombos = ({ combos, setCombos, productos, onModificarCombo, onAgre
   const [comboEditando, setComboEditando] = useState(null);
   const [productoBuscado, setProductoBuscado] = useState('');
   const [productosEncontrados, setProductosEncontrados] = useState([]);
+  const [cargando, setCargando] = useState(true);
+  const [errorCarga, setErrorCarga] = useState(null);
 
+  // Cargar combos desde el backend al montar el componente
+  useEffect(() => {
+    const fetchCombos = async () => {
+      try {
+        setCargando(true);
+        const response = await fetch('http://localhost:5228/api/combo');
+        if (!response.ok) throw new Error(`Error ${response.status}: ${response.statusText}`);
+        const data = await response.json();
+
+        // Mapear la respuesta al formato que usa el componente
+        const combosFormateados = data.map(combo => ({
+          id: combo.id,
+          nombre: combo.name,                     // backend usa "name"
+          productos: combo.products.map(prod => ({
+            nombre: prod.nameProduct,            // backend usa "nameProduct"
+            cantidad: prod.quantity,             // backend usa "quantity"
+            unidad: prod.unity,                  // backend usa "unity"
+            codigo: prod.codigo || ''            // si no viene, vacío
+          })),
+          nombreCreador: combo.nameUserOrAdmin
+        }));
+
+        setCombos(combosFormateados);
+        setErrorCarga(null);
+      } catch (error) {
+        console.error('Error al cargar combos:', error);
+        setErrorCarga('No se pudieron cargar los combos. Intente más tarde.');
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    fetchCombos();
+  }, [setCombos]); // Dependencia: setCombos (estable, solo se ejecuta una vez)
+
+  // Si está cargando, mostrar un indicador
+  if (cargando) {
+    return (
+      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 text-center">
+        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        <p className="mt-2 text-gray-600">Cargando combos...</p>
+      </div>
+    );
+  }
+
+  // Si hay error, mostrarlo
+  if (errorCarga) {
+    return (
+      <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-8 text-center text-red-600">
+        <p>{errorCarga}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  // Resto del componente (igual que el original, sin cambios en la lógica de edición)
   const combosFiltrados = combos.filter(combo =>
     combo.nombre.toLowerCase().includes(terminoBusqueda.toLowerCase())
   );
@@ -374,9 +437,9 @@ const InterfazCombos = ({ combos, setCombos, productos, onModificarCombo, onAgre
                           type="number"
                           value={producto.cantidad}
                           onChange={(e) => actualizarProductoEditando(index, 'cantidad', parseInt(e.target.value) || 0)}
-                            onFocus={(e) => e.target.select()}
-                            className="w-full sm:w-16 p-1 border border-yellow-300 rounded text-xs"
-                            placeholder="0"
+                          onFocus={(e) => e.target.select()}
+                          className="w-full sm:w-16 p-1 border border-yellow-300 rounded text-xs"
+                          placeholder="0"
                           min="0"
                           step="1"
                         />

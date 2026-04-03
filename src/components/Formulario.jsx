@@ -1,17 +1,16 @@
 import { useState } from "react";
 import Tooltip from "./UI/Tooltip.jsx";
 
-const Formulario = ({ onAgregarProducto, onCerrar }) => {
+const Formulario = ({ onAgregarProducto, onCerrar, usuario }) => {
   const [pasoActual, setPasoActual] = useState(1);
   const [nombre, setNombre] = useState(''); 
   const [categoria, setCategoria] = useState('Alimentos');
   const [cantidad, setCantidad] = useState(''); 
-  const [peso, setPeso] = useState(''); 
-  const [unidadPeso, setUnidadPeso] = useState('g');
+  const [unidad, setUnidad] = useState('u');   // 👈 nueva unidad
   const [fechaentrada, setFechaEntrada] = useState('');
   const [fechaVencimiento, setFechaVencimiento] = useState(''); 
-  const [operador, setOperador] = useState(''); 
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const validarPasoActual = () => {
     if (pasoActual === 1) {
@@ -25,9 +24,10 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
         setError(true);
         return false;
       }
+      // La unidad ya está seleccionada por defecto, no hace falta validar
     }
     if (pasoActual === 3) {
-      if ([fechaentrada, operador].includes('')) {
+      if (!fechaentrada) {
         setError(true);
         return false;
       }
@@ -46,42 +46,84 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
     setPasoActual((prev) => Math.max(prev - 1, 1));
   };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validar campos obligatorios
-    if([nombre, cantidad, fechaentrada, operador].includes('')){
+    if (!nombre.trim() || !cantidad || !fechaentrada) {
       setError(true);
-      return
+      return;
     }
     setError(false);
     
-    // Determinar la unidad a mostrar
-    let unidad = '';
-    if (peso) {
-      unidad = unidadPeso;
-    } else {
-      unidad = 'u'; // Por defecto, si no hay peso, es unidad
+    // Obtener token y userId
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('No hay sesión activa. Inicie sesión nuevamente.');
+      return;
     }
-    
-    const nuevoProducto = {
-      nombre,
-      categoria,
-      cantidad: parseInt(cantidad), // Asegurar que sea número
-      unidad: unidad,
-      fechaEntrada: fechaentrada,
-      fechaVencimiento: fechaVencimiento || '', // Si no hay fecha, vacío
+    const userId = usuario?.id;
+    if (!userId) {
+      alert('No se pudo identificar al usuario. Reintente.');
+      return;
+    }
+
+    // Preparar fecha de vencimiento en formato ISO (si existe)
+    let endDate = null;
+    if (fechaVencimiento) {
+      endDate = new Date(fechaVencimiento).toISOString();
+    }
+
+    const payload = {
+      productName: nombre,
+      quantity: parseInt(cantidad),
+      unity: unidad,        // 👈 usamos la unidad seleccionada
+      endDate: endDate,
+      adminId: null,
+      userId: userId,
+      category: categoria
     };
-    
-    console.log('Agregando producto:', nuevoProducto); // Para debugging
-    onAgregarProducto(nuevoProducto);
-    onCerrar();
-  }
+
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5228/api/product', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const nuevoProductoBackend = await response.json();
+        onAgregarProducto({
+          id: nuevoProductoBackend.id,
+          nombre: nombre,
+          categoria: categoria,
+          cantidad: parseInt(cantidad),
+          unidad: unidad,
+          fechaEntrada: fechaentrada,
+          fechaVencimiento: fechaVencimiento || null,
+          operador: usuario?.nombre || usuario?.username,
+          proveedor: usuario?.username || 'Sistema'
+        });
+        onCerrar();
+      } else {
+        const errorText = await response.text();
+        alert(`Error al guardar: ${errorText}`);
+      }
+    } catch (error) {
+      console.error('Error de red:', error);
+      alert('Error de conexión con el servidor');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const TITULOS_PASOS = {
     1: 'Paso 1 de 3: Informacion basica',
     2: 'Paso 2 de 3: Cantidad y unidad',
-    3: 'Paso 3 de 3: Fechas y operador',
+    3: 'Paso 3 de 3: Fechas',
   };
 
   return (
@@ -116,7 +158,7 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
                 <label htmlFor="producto" className="block text-gray-900 uppercase font-extrabold text-base">
                   Nombre de Producto <span className="text-red-600">*</span>
                 </label>
-                <Tooltip texto="¿QUE ES ESTO? Ingrese el nombre exacto del producto tal como aparece en el inventario" posicion="arriba">
+                <Tooltip texto="Ingrese el nombre exacto del producto" posicion="arriba">
                   <span className="text-orange-800 border-2 border-orange-700 rounded-full w-7 h-7 inline-flex items-center justify-center font-extrabold bg-white">?</span>
                 </Tooltip>
               </div>
@@ -127,6 +169,7 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
                 className="border-2 border-orange-500 w-full p-3 text-base placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)} 
+                disabled={loading}
               />
             </div>
 
@@ -139,6 +182,7 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
                 value={categoria}
                 onChange={(e) => setCategoria(e.target.value)}
                 className="border-2 border-orange-500 w-full p-3 text-base rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all bg-white"
+                disabled={loading}
               >
                 <option value="Alimentos">Alimentos</option>
                 <option value="Bebidas">Bebidas</option>
@@ -157,7 +201,7 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
                 <label htmlFor="cantidad" className="block text-gray-900 uppercase font-extrabold text-base">
                   Cantidad <span className="text-red-600">*</span>
                 </label>
-                <Tooltip texto="¿QUE ES ESTO? Escriba la cantidad total disponible en almacen" posicion="arriba">
+                <Tooltip texto="Escriba la cantidad total disponible" posicion="arriba">
                   <span className="text-orange-800 border-2 border-orange-700 rounded-full w-7 h-7 inline-flex items-center justify-center font-extrabold bg-white">?</span>
                 </Tooltip>
               </div>
@@ -170,35 +214,28 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
                 onChange={(e) => setCantidad(e.target.value)}
                 onFocus={(e) => e.target.select()}
                 min="0"
+                disabled={loading}
               />
             </div>
 
             <div className="mb-5">
-              <label htmlFor="Peso" className="block text-gray-900 uppercase font-extrabold text-base mb-2">
-                Peso <span className="text-gray-500 text-sm">(opcional)</span>
+              <label htmlFor="unidad" className="block text-gray-900 uppercase font-extrabold text-base mb-2">
+                Unidad de Medida <span className="text-red-600">*</span>
               </label>
-              <div className="flex gap-2">
-                <input 
-                  type="number" 
-                  id="Peso"
-                  placeholder="0"
-                  className="w-36 border-2 border-orange-500 p-3 text-base placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all"
-                  value={peso}
-                  onChange={(e) => setPeso(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  step="0.01"
-                  min="0"
-                />
-                <select
-                  value={unidadPeso}
-                  onChange={(e) => setUnidadPeso(e.target.value)}
-                  className="flex-1 border-2 border-orange-500 p-3 text-base rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all bg-white text-gray-800 font-bold"
-                >
-                  <option value="g">Gramos (g)</option>
-                  <option value="kg">Kilogramos (kg)</option>
-                  <option value="lb">Libras (lb)</option>
-                </select>
-              </div>
+              <select
+                id="unidad"
+                value={unidad}
+                onChange={(e) => setUnidad(e.target.value)}
+                className="border-2 border-orange-500 w-full p-3 text-base rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all bg-white"
+                disabled={loading}
+              >
+                <option value="u">Unidades (u)</option>
+                <option value="g">Gramos (g)</option>
+                <option value="kg">Kilogramos (kg)</option>
+                <option value="lb">Libras (lb)</option>
+                <option value="L">Litros (L)</option>
+                <option value="ml">Mililitros (ml)</option>
+              </select>
             </div>
           </>
         )}
@@ -216,6 +253,7 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
                   className="w-full px-3 py-3 border-2 border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all text-base bg-white"
                   value={fechaentrada}
                   onChange={(e) => setFechaEntrada(e.target.value)}
+                  disabled={loading}
                 />
               </div>
 
@@ -229,6 +267,7 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
                   className="w-full px-3 py-3 border-2 border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all text-base bg-white"
                   value={fechaVencimiento}
                   onChange={(e) => setFechaVencimiento(e.target.value)}
+                  disabled={loading}
                 />
               </div>
             </div>
@@ -236,20 +275,15 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
             <div className="mb-5">
               <div className="flex items-center gap-3 mb-2">
                 <label htmlFor="operador" className="block text-gray-900 uppercase font-extrabold text-base">
-                  Nombre de Operador <span className="text-red-600">*</span>
+                  Operador
                 </label>
-                <Tooltip texto="¿QUE ES ESTO? Nombre de la persona que registra esta entrada" posicion="arriba">
+                <Tooltip texto="Se usará el nombre del usuario que inició sesión" posicion="arriba">
                   <span className="text-orange-800 border-2 border-orange-700 rounded-full w-7 h-7 inline-flex items-center justify-center font-extrabold bg-white">?</span>
                 </Tooltip>
               </div>
-              <input 
-                type="text" 
-                id="operador"
-                placeholder="Nombre del Operador"
-                className="border-2 border-orange-500 w-full p-3 text-base placeholder-gray-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all"
-                value={operador}
-                onChange={(e) => setOperador(e.target.value)} 
-              />
+              <div className="border-2 border-gray-300 bg-gray-100 p-3 rounded-lg text-base">
+                {usuario?.nombre || usuario?.username || 'No especificado'}
+              </div>
             </div>
           </>
         )}
@@ -259,20 +293,20 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
             type="button"
             className="w-full px-5 py-3 border-2 border-red-700 bg-white text-red-700 font-extrabold rounded-lg hover:bg-red-50 hover:shadow transition-all duration-300 text-base cursor-pointer"
             onClick={onCerrar}
+            disabled={loading}
           >
             Cancelar
           </button>
 
-          {pasoActual > 1 ? (
+          {pasoActual > 1 && (
             <button 
               type="button"
               className="w-full px-5 py-3 border-2 border-blue-700 bg-white text-blue-700 font-extrabold rounded-lg hover:bg-blue-50 hover:shadow transition-all duration-300 text-base cursor-pointer"
               onClick={irPasoAnterior}
+              disabled={loading}
             >
               Atras
             </button>
-          ) : (
-            <div />
           )}
 
           {pasoActual < 3 ? (
@@ -280,6 +314,7 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
               type="button"
               className="w-full px-5 py-3 border-2 border-green-700 bg-white text-green-700 font-extrabold rounded-lg hover:bg-green-50 hover:shadow transition-all duration-300 text-base cursor-pointer"
               onClick={irSiguientePaso}
+              disabled={loading}
             >
               Siguiente
             </button>
@@ -287,14 +322,15 @@ const Formulario = ({ onAgregarProducto, onCerrar }) => {
             <button 
               type="submit"
               className="w-full px-5 py-3 border-2 border-green-700 bg-green-700 text-white font-extrabold rounded-lg hover:bg-green-800 hover:shadow transition-all duration-300 text-base cursor-pointer"
+              disabled={loading}
             >
-              Guardar Producto
+              {loading ? 'Guardando...' : 'Guardar Producto'}
             </button>
           )}
         </div>
       </form>
     </div>
   );
-}
+};
 
 export default Formulario;

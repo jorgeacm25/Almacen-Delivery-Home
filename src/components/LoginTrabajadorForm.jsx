@@ -18,45 +18,44 @@ const LoginTrabajadorForm = ({ onLogin, onCancelar }) => {
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5228/user/login', {
+      // 1. Login: obtener token
+      const loginResponse = await fetch('http://localhost:5228/user/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userName: username, password: password })
       });
 
-      if (response.ok) {
-        let token;
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const data = await response.json();
-          token = data.token || data;
-        } else {
-          token = await response.text();
-        }
-
-        if (!token) throw new Error('No se recibió token');
-
-        localStorage.setItem('token', token);
-
-        // Crear objeto usuario que el callback espera (con nombre)
-        const usuario = {
-          nombre: username,   // App espera 'nombre'
-          token: token,
-          username: username
-        };
-        onLogin(usuario);
-      } else {
-        let errorMsg;
-        try {
-          errorMsg = await response.text();
-        } catch {
-          errorMsg = `Error ${response.status}`;
-        }
-        setError(errorMsg || 'Credenciales incorrectas');
+      if (!loginResponse.ok) {
+        const errorMsg = await loginResponse.text();
+        throw new Error(errorMsg || 'Credenciales incorrectas');
       }
+
+      const token = await loginResponse.text(); // texto plano
+      localStorage.setItem('token', token);
+
+      // 2. Obtener lista de usuarios
+      const usersResponse = await fetch('http://localhost:5228/user', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (!usersResponse.ok) throw new Error('Error al obtener datos de usuario');
+      const users = await usersResponse.json();
+
+      // 3. Buscar el usuario que coincida con el username usado en login
+      const matchedUser = users.find(u => u.userName === username);
+      if (!matchedUser) throw new Error('Usuario no encontrado en el sistema');
+
+      // 4. Construir objeto usuario con id y nombre
+      const usuario = {
+        id: matchedUser.id,
+        nombre: matchedUser.fullName || matchedUser.userName,
+        username: matchedUser.userName,
+        token: token
+      };
+
+      onLogin(usuario);
     } catch (error) {
       console.error(error);
-      setError('Error de conexión con el servidor');
+      setError(error.message || 'Error de conexión');
     } finally {
       setLoading(false);
     }

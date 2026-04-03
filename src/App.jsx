@@ -16,7 +16,7 @@ import InterfazCombos from './components/InterfazCombos.jsx'
 import AlertasNotificaciones from './components/AlertasNotificaciones.jsx'
 import DashboardPrincipal from './components/DashboardPrincipal.jsx'
 import SeccionReportes from './components/SeccionReportes.jsx'
-import { Fragment, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useStockAlerts } from './hooks/useStockAlerts.js'
 import { useAtajosTeclado } from './hooks/useAtajosTeclado.js'
 import Tooltip from './components/UI/Tooltip.jsx'
@@ -88,18 +88,42 @@ function App() {
   const [stockMax, setStockMax] = useState('');
 
   // Base de datos de productos
-  const [productos, setProductos] = useState(
-    productosData.map((producto) => ({
-      ...producto,
-      categoria: producto.categoria || obtenerCategoriaAutomatica(producto.nombre),
-    }))
-  );
+  const [productos, setProductos] = useState([]);
   
   // Base de datos de combos
   const [combos, setCombos] = useState(combosData);
   
   // Base de datos del historial
   const [historial, setHistorial] = useState(historialData);
+  useEffect(() => {
+  const cargarProductos = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:5228/api/product', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!response.ok) throw new Error('Error al cargar productos');
+      const data = await response.json();
+
+      const productosMapeados = data.map(prod => ({
+        id: prod.id,
+        nombre: prod.name,
+        cantidad: prod.quantity,
+        unidad: prod.unity,
+        fechaVencimiento: prod.endDate ? prod.endDate.split('T')[0] : null,
+        operador: prod.nameUserorAdmin,
+        categoria: prod.category || obtenerCategoriaAutomatica(prod.name),
+        proveedor: prod.nameUserorAdmin || 'Sin proveedor',
+        fechaEntrada: new Date().toISOString().split('T')[0],
+      }));
+      setProductos(productosMapeados);
+    } catch (error) {
+      console.error('Error fetching productos:', error);
+      // Opcional: cargar datos locales de respaldo si falla la API
+    }
+  };
+  cargarProductos();
+}, []);
 
   // Hook para detectar alertas de stock y vencimiento
   const alertas = useStockAlerts(productos, 50, 7);
@@ -629,16 +653,18 @@ function App() {
             productos={productos}
             onCrearCombo={crearNuevoCombo}
             onCerrar={() => setMostrarModalNuevoCombo(false)}
+            usuario={usuario}
           />
         )}
         
         {/* Modales de acciones de productos */}
         {modalAgregar.abierto && (
           <ModalAgregarCantidad
-            producto={modalAgregar.producto}
-            onAgregar={agregarCantidad}
-            onCerrar={() => setModalAgregar({ abierto: false, producto: null })}
-          />
+  producto={modalAgregar.producto}
+  onAgregar={agregarCantidad}
+  onCerrar={() => setModalAgregar({ abierto: false, producto: null })}
+  usuario={usuario}
+/>
         )}
 
         {modalModificar.abierto && (
@@ -650,12 +676,11 @@ function App() {
         )}
 
         {modalInfo.abierto && (
-          <ModalInfoProducto
-            producto={modalInfo.producto}
-            historial={historial}
-            onCerrar={() => setModalInfo({ abierto: false, producto: null })}
-          />
-        )}
+  <ModalInfoProducto
+    producto={modalInfo.producto}
+    onCerrar={() => setModalInfo({ abierto: false, producto: null })}
+  />
+)}
 
         {modalEliminar.abierto && (
           <ModalConfirmarEliminar
@@ -918,7 +943,7 @@ function App() {
         {/* Sección Historial */}
         {seccionActiva === 'historial' && (
           <div className='mt-8 px-4 sm:px-6 md:px-8 pb-8'>
-            <InterfazHistorial historial={historial} />
+            <InterfazHistorial/>
           </div>
         )}
 
@@ -944,7 +969,7 @@ function App() {
               onClick={() => setMostrarFormulario(false)}
             ></div>
             <div className="relative z-10">
-              <Formulario onAgregarProducto={agregarProducto} onCerrar={() => setMostrarFormulario(false)} />
+              <Formulario onAgregarProducto={agregarProducto} onCerrar={() => setMostrarFormulario(false)} usuario = {usuario}/>
             </div>
           </div>
         )}

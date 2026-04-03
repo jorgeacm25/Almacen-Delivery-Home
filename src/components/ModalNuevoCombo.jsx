@@ -1,20 +1,22 @@
 import { useState } from 'react';
 
-const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar }) => {
+const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar, usuario }) => {
   const [nombreCombo, setNombreCombo] = useState('');
   const [productosSeleccionados, setProductosSeleccionados] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const productosFiltrados = productos.filter(p => 
     p.nombre.toLowerCase().includes(busqueda.toLowerCase()) &&
-    !productosSeleccionados.some(ps => ps.nombre === p.nombre)
+    !productosSeleccionados.some(ps => ps.id === p.id)
   );
 
   const agregarProducto = (producto) => {
     setProductosSeleccionados([
       ...productosSeleccionados,
       {
+        id: producto.id,
         nombre: producto.nombre,
         cantidad: 1,
         unidad: producto.unidad
@@ -29,17 +31,11 @@ const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar }) => {
     setProductosSeleccionados(nuevos);
   };
 
-  const actualizarUnidad = (index, nuevaUnidad) => {
-    const nuevos = [...productosSeleccionados];
-    nuevos[index].unidad = nuevaUnidad;
-    setProductosSeleccionados(nuevos);
-  };
-
   const eliminarProducto = (index) => {
     setProductosSeleccionados(productosSeleccionados.filter((_, i) => i !== index));
   };
 
-  const handleCrear = () => {
+  const handleCrear = async () => {
     if (!nombreCombo.trim()) {
       setError('Debe ingresar un nombre para el combo');
       return;
@@ -48,7 +44,59 @@ const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar }) => {
       setError('Debe agregar al menos un producto al combo');
       return;
     }
-    onCrearCombo(nombreCombo, productosSeleccionados);
+    setError('');
+    setLoading(true);
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setError('No hay sesión activa. Inicie sesión nuevamente.');
+      setLoading(false);
+      return;
+    }
+    const userId = usuario?.id;
+    if (!userId) {
+      setError('No se pudo identificar al usuario. Reintente.');
+      setLoading(false);
+      return;
+    }
+
+    // Construir array de productos con id y quantity
+    const productsPayload = productosSeleccionados.map(p => ({
+      id: p.id,
+      quantity: p.cantidad
+    }));
+
+    const payload = {
+      name: nombreCombo,
+      products: productsPayload,
+      adminId: null,
+      userId: userId
+    };
+
+    try {
+      const response = await fetch('http://localhost:5228/api/combo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        // Si el backend devuelve el combo creado, podrías usarlo, pero por ahora llamamos al callback
+        onCrearCombo(nombreCombo, productosSeleccionados);
+        onCerrar();
+      } else {
+        const errorText = await response.text();
+        setError(errorText || 'Error al crear el combo');
+      }
+    } catch (err) {
+      console.error(err);
+      setError('Error de conexión con el servidor');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -73,6 +121,7 @@ const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar }) => {
             onChange={(e) => setNombreCombo(e.target.value)}
             className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400"
             placeholder="Ej: Combo Familiar"
+            disabled={loading}
           />
         </div>
 
@@ -87,8 +136,9 @@ const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar }) => {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               className="w-full p-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-400"
+              disabled={loading}
             />
-            {busqueda && productosFiltrados.length > 0 && (
+            {busqueda && productosFiltrados.length > 0 && !loading && (
               <div className="absolute z-10 w-full mt-1 max-h-40 overflow-y-auto bg-white border-2 border-green-200 rounded-lg shadow-lg">
                 {productosFiltrados.map(producto => (
                   <div
@@ -130,29 +180,21 @@ const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar }) => {
                             type="number"
                             value={producto.cantidad}
                             onChange={(e) => actualizarCantidad(index, parseInt(e.target.value) || 0)}
-                              onFocus={(e) => e.target.select()}
-                              className="w-full sm:w-16 p-1 border border-green-300 rounded text-xs"
-                              placeholder="0"
-                              min="0"
+                            onFocus={(e) => e.target.select()}
+                            className="w-full sm:w-16 p-1 border border-green-300 rounded text-xs"
+                            placeholder="0"
+                            min="0"
+                            disabled={loading}
                           />
                         </td>
                         <td className="border-2 border-green-200 p-2 text-xs">
-                          <select
-                            value={producto.unidad}
-                            onChange={(e) => actualizarUnidad(index, e.target.value)}
-                            className="w-full sm:w-16 p-1 border border-green-300 rounded text-xs"
-                          >
-                            <option value="lb">lb</option>
-                            <option value="kg">kg</option>
-                            <option value="g">g</option>
-                            <option value="L">L</option>
-                            <option value="u">u</option>
-                          </select>
+                          {producto.unidad}
                         </td>
                         <td className="border-2 border-green-200 p-2">
                           <button
                             onClick={() => eliminarProducto(index)}
                             className="px-2 py-1 border-2 border-red-500 bg-red-50 text-red-700 font-bold rounded-lg hover:bg-red-100 transition-all duration-300 text-[10px]"
+                            disabled={loading}
                           >
                             Eliminar
                           </button>
@@ -170,14 +212,16 @@ const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar }) => {
           <button
             onClick={onCerrar}
             className="px-6 py-3 border-2 border-gray-500 bg-gray-50 text-gray-700 font-bold rounded-lg hover:bg-gray-100 transition-all duration-300"
+            disabled={loading}
           >
             Cancelar
           </button>
           <button
             onClick={handleCrear}
             className="px-6 py-3 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 transition-all duration-300"
+            disabled={loading}
           >
-            Crear Combo
+            {loading ? 'Creando...' : 'Crear Combo'}
           </button>
         </div>
       </div>

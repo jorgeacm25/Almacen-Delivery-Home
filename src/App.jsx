@@ -4,8 +4,6 @@ import FormularioSalida from './components/FormularioSalida.jsx';
 import InterfazHistorial from './components/InterfazHistorial.jsx'
 import AuthGerenteForm from './components/AuthGerenteForm.jsx'
 import RegistroTrabajadorForm from './components/RegistroTrabajadorForm.jsx'
-// Eliminamos la importación de FormLogin
-// import FormLogin from './components/FormLogin.jsx'
 import LoginTrabajadorForm from './components/LoginTrabajadorForm.jsx'
 import ModalAgregarCantidad from './components/ModalAgregarCantidad.jsx'
 import ModalModificarProducto from './components/ModalModificarProducto.jsx'
@@ -15,11 +13,12 @@ import ModalNuevoCombo from './components/ModalNuevoCombo.jsx'
 import InterfazCombos from './components/InterfazCombos.jsx'
 import AlertasNotificaciones from './components/AlertasNotificaciones.jsx'
 import DashboardPrincipal from './components/DashboardPrincipal.jsx'
-// import SeccionReportes from './components/SeccionReportes.jsx'   // ELIMINADO
 import { Fragment, useEffect, useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useStockAlerts } from './hooks/useStockAlerts.js'
 import { useAtajosTeclado } from './hooks/useAtajosTeclado.js'
 import Tooltip from './components/UI/Tooltip.jsx'
+import { APP_ROUTES } from './routes/appRoutes.js'
 import fondo from './assets/fondo.png'
 import logoFondo from './assets/LogoFondo.png'
 import { historialData } from './data/historialData.js'
@@ -67,6 +66,9 @@ function App() {
   const [usuario, setUsuario] = useState(null);
   const [mostrarModalAuth, setMostrarModalAuth] = useState(false);
   const [pasoRegistro, setPasoRegistro] = useState('');
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const [modalAgregar, setModalAgregar] = useState({ abierto: false, producto: null });
   const [modalModificar, setModalModificar] = useState({ abierto: false, producto: null });
@@ -182,7 +184,7 @@ function App() {
   const handleLogout = () => {
     agregarAlHistorial('logout', 'Cierre de Sesión', `Usuario ${usuario?.nombre} cerró sesión`);
     setUsuario(null);
-    setSeccionActiva(null);
+    navigate(APP_ROUTES.DASHBOARD);
     setMostrarFormulario(false);
     localStorage.removeItem('token');
   };
@@ -198,27 +200,27 @@ function App() {
   };
 
   const handleCombosClick = () => {
-    setSeccionActiva('combos');
+    navigate(APP_ROUTES.COMBOS);
     setMostrarFormulario(false);
   };
 
   const handleProductosClick = () => {
-    setSeccionActiva('productos');
+    navigate(APP_ROUTES.PRODUCTOS);
     setMostrarFormulario(false);
   };
 
   const handleSalidaClick = () => {
-    setSeccionActiva('salida');
+    navigate(APP_ROUTES.SALIDA);
     setMostrarFormulario(false);
   };
   
   const handleHistorialClick = () => {
-    setSeccionActiva('historial');
+    navigate(APP_ROUTES.HISTORIAL);
     setMostrarFormulario(false);
   };
 
   const handleDashboardClick = () => {
-    setSeccionActiva(null);
+    navigate(APP_ROUTES.DASHBOARD);
     setMostrarFormulario(false);
   };
 
@@ -503,9 +505,9 @@ function App() {
   };
 
   useAtajosTeclado([
-    { teclas: { ctrl: true, tecla: 'b' }, callback: () => { setSeccionActiva('productos'); setTerminoBusqueda(''); setTimeout(() => document.querySelector('input[placeholder*="Buscar"]')?.focus(), 0); } },
+    { teclas: { ctrl: true, tecla: 'b' }, callback: () => { navigate(APP_ROUTES.PRODUCTOS); setTerminoBusqueda(''); setTimeout(() => document.querySelector('input[placeholder*="Buscar"]')?.focus(), 0); } },
     { teclas: { ctrl: true, tecla: 'l' }, callback: () => { if (usuario) handleLogout(); else abrirLogin(); } },
-    { teclas: { ctrl: true, tecla: 'n' }, callback: () => { if (usuario && seccionActiva === 'productos') setMostrarFormulario(true); } },
+    { teclas: { ctrl: true, tecla: 'n' }, callback: () => { if (usuario && location.pathname === APP_ROUTES.PRODUCTOS) setMostrarFormulario(true); } },
     { teclas: { ctrl: true, tecla: 'h' }, callback: handleDashboardClick }
   ]);
 
@@ -567,13 +569,13 @@ function App() {
         {modalInfo.abierto && <ModalInfoProducto producto={modalInfo.producto} onCerrar={() => setModalInfo({ abierto: false, producto: null })} />}
         {modalEliminar.abierto && <ModalConfirmarEliminar producto={modalEliminar.producto} onEliminar={eliminarProducto} onCerrar={() => setModalEliminar({ abierto: false, producto: null })} />}
         
-        {seccionActiva === 'combos' && (
+        {location.pathname === APP_ROUTES.COMBOS && (
           <div className='mt-8 px-4 sm:px-6 md:px-8 pb-8'>
             <InterfazCombos combos={combos} setCombos={setCombos} productos={productos} onModificarCombo={modificarCombo} onAgregarAlHistorial={agregarAlHistorial} onAbrirNuevoCombo={() => setMostrarModalNuevoCombo(true)} usuario={usuario} />
           </div>
         )}
         
-        {seccionActiva === 'productos' && (
+        {location.pathname === APP_ROUTES.PRODUCTOS && (
           <div className='mt-8 px-4 sm:px-6 md:px-8 pb-8'>
             <div className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-6 w-full max-w-6xl mx-auto">
               <h2 className="text-3xl font-bold text-center text-orange-600 mb-6">Listado de Productos</h2>
@@ -674,26 +676,26 @@ function App() {
           </div>
         )}
         
-        {seccionActiva === 'salida' && (
+        {location.pathname === APP_ROUTES.SALIDA && (
           <div className='fixed inset-0 flex items-center justify-center z-50'>
-            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setSeccionActiva(null)}></div>
+            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => navigate(APP_ROUTES.DASHBOARD)}></div>
             <div className="relative z-10">
-              <FormularioSalida productos={productos} combos={combos} onRegistrarSalida={registrarSalidaMultiple} onCerrar={() => setSeccionActiva(null)} usuario={usuario} />
+              <FormularioSalida productos={productos} combos={combos} onRegistrarSalida={registrarSalidaMultiple} onCerrar={() => navigate(APP_ROUTES.DASHBOARD)} usuario={usuario} />
             </div>
           </div>
         )}
         
-        {seccionActiva === 'historial' && (
+        {location.pathname === APP_ROUTES.HISTORIAL && (
           <div className='mt-8 px-4 sm:px-6 md:px-8 pb-8'>
             <InterfazHistorial />
           </div>
         )}
         
-        {usuario && !seccionActiva && (
+        {usuario && location.pathname === APP_ROUTES.DASHBOARD && (
           <DashboardPrincipal productos={productos} historial={historial} combos={combos} alertas={alertas} />
         )}
         
-        {mostrarFormulario && usuario && seccionActiva === 'productos' && (
+        {mostrarFormulario && usuario && location.pathname === APP_ROUTES.PRODUCTOS && (
           <div className="fixed inset-0 flex items-center justify-center z-50">
             <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMostrarFormulario(false)}></div>
             <div className="relative z-10">

@@ -1,8 +1,11 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import logo from '../assets/Group 6.jpg';
+import { APP_ROUTES } from '../routes/appRoutes.js';
 
 function Header({ usuario, onLogout, onMostrarLogin, onMostrarRegistro, onDashboardClick, onCombosClick, onProductosClick, onSalidaClick, onHistorialClick, onReportesClick, seccionActiva }) {
     const [mostrarMenu, setMostrarMenu] = useState(false);
+        const location = useLocation();
 
     return (
         <header className="bg-white shadow-lg py-2 w-full">
@@ -43,7 +46,7 @@ function Header({ usuario, onLogout, onMostrarLogin, onMostrarRegistro, onDashbo
                             <button 
                                 onClick={onCombosClick}
                                 className={`px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 font-extrabold rounded-lg text-xs sm:text-sm md:text-base ${
-                                    seccionActiva === 'combos'
+                                    location.pathname === APP_ROUTES.COMBOS
                                         ? 'border-green-600 bg-green-600 text-white'
                                         : 'border-green-700 bg-white text-green-800 hover:bg-green-100'
                                 }`}
@@ -53,7 +56,7 @@ function Header({ usuario, onLogout, onMostrarLogin, onMostrarRegistro, onDashbo
                             <button 
                                 onClick={onProductosClick}
                                 className={`px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 font-extrabold rounded-lg text-xs sm:text-sm md:text-base ${
-                                    seccionActiva === 'productos'
+                                    location.pathname === APP_ROUTES.PRODUCTOS
                                         ? 'border-orange-600 bg-orange-600 text-white'
                                         : 'border-orange-700 bg-white text-orange-800 hover:bg-orange-100'
                                 }`}
@@ -63,7 +66,7 @@ function Header({ usuario, onLogout, onMostrarLogin, onMostrarRegistro, onDashbo
                             <button 
                                 onClick={onSalidaClick}
                                 className={`px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 font-extrabold rounded-lg text-xs sm:text-sm md:text-base ${
-                                    seccionActiva === 'salida'
+                                    location.pathname === APP_ROUTES.SALIDA
                                         ? 'border-red-600 bg-red-600 text-white'
                                         : 'border-red-700 bg-white text-red-800 hover:bg-red-100'
                                 }`}
@@ -73,7 +76,7 @@ function Header({ usuario, onLogout, onMostrarLogin, onMostrarRegistro, onDashbo
                             <button 
                                 onClick={onHistorialClick}
                                 className={`px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 md:py-3 border-2 font-extrabold rounded-lg text-xs sm:text-sm md:text-base ${
-                                    seccionActiva === 'historial'
+                                    location.pathname === APP_ROUTES.HISTORIAL
                                         ? 'border-purple-600 bg-purple-600 text-white'
                                         : 'border-purple-700 bg-white text-purple-800 hover:bg-purple-100'
                                 }`}

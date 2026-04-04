@@ -9,6 +9,11 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
   const [productoBuscado, setProductoBuscado] = useState('');
   const [productosEncontrados, setProductosEncontrados] = useState([]);
   const [saving, setSaving] = useState(false);
+  
+  // Estados para el modal de confirmación de eliminación
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [comboToDelete, setComboToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Cargar combos desde el backend al montar el componente
   useEffect(() => {
@@ -18,12 +23,11 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
         if (!response.ok) throw new Error(`Error ${response.status}`);
         const data = await response.json();
 
-        // Mapear la respuesta al formato que usa el componente, incluyendo el id de cada producto
         const combosFormateados = data.map(combo => ({
           id: combo.id,
           nombre: combo.name,
           productos: combo.products.map(prod => ({
-            id: prod.id,                     // ← guardamos el ID del producto
+            id: prod.id,
             nombre: prod.nameProduct,
             cantidad: prod.quantity,
             unidad: prod.unity,
@@ -76,71 +80,70 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
   };
 
   const guardarCambiosCombo = async () => {
-  if (!comboEditando) return;
+    if (!comboEditando) return;
 
-  const token = localStorage.getItem('token');
-  if (!token) {
-    alert('No hay sesión activa. Inicie sesión nuevamente.');
-    return;
-  }
-  const userId = usuario?.id;
-  if (!userId) {
-    alert('No se pudo identificar al usuario. Reintente.');
-    return;
-  }
-
-  // Construir productsIds como array de objetos { id, quantity }
-  const productsIds = comboEditando.productos.map(p => ({
-    id: p.id,
-    quantity: p.cantidad
-  }));
-
-  const payload = {
-    id: comboEditando.id,
-    name: comboEditando.nombre,
-    productsIds: productsIds,
-    adminId: null,
-    userId: userId
-  };
-
-  setSaving(true);
-  try {
-    const response = await fetch('http://localhost:5228/api/combo', {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`   // ← agregar token
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (response.ok) {
-      // Actualizar estado local y notificar al padre
-      const combosActualizados = combos.map(combo =>
-        combo.id === comboEditando.id ? comboEditando : combo
-      );
-      setCombosLocal(combosActualizados);
-      if (setCombos) setCombos(combosActualizados);
-      setComboSeleccionado(comboEditando);
-      setModoEdicion(false);
-      setComboEditando(null);
-      
-      onAgregarAlHistorial('modificacion', 'Combo Modificado', 
-        `Se modificó ${comboEditando.nombre}`);
-      if (onModificarCombo) {
-        onModificarCombo(comboEditando);
-      }
-    } else {
-      const errorText = await response.text();
-      alert(`Error al guardar: ${errorText}`);
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('No hay sesión activa. Inicie sesión nuevamente.');
+      return;
     }
-  } catch (error) {
-    console.error(error);
-    alert('Error de conexión con el servidor');
-  } finally {
-    setSaving(false);
-  }
-};
+    const userId = usuario?.id;
+    if (!userId) {
+      alert('No se pudo identificar al usuario. Reintente.');
+      return;
+    }
+
+    const productsIds = comboEditando.productos.map(p => ({
+      id: p.id,
+      quantity: p.cantidad
+    }));
+
+    const payload = {
+      id: comboEditando.id,
+      name: comboEditando.nombre,
+      productsIds: productsIds,
+      adminId: null,
+      userId: userId
+    };
+
+    setSaving(true);
+    try {
+      const response = await fetch('http://localhost:5228/api/combo', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (response.ok) {
+        const combosActualizados = combos.map(combo =>
+          combo.id === comboEditando.id ? comboEditando : combo
+        );
+        setCombosLocal(combosActualizados);
+        if (setCombos) setCombos(combosActualizados);
+        setComboSeleccionado(comboEditando);
+        setModoEdicion(false);
+        setComboEditando(null);
+        
+        onAgregarAlHistorial('modificacion', 'Combo Modificado', 
+          `Se modificó ${comboEditando.nombre}`);
+        if (onModificarCombo) {
+          onModificarCombo(comboEditando);
+        }
+        window.location.reload();
+      } else {
+        const errorText = await response.text();
+        alert(`Error al guardar: ${errorText}`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error de conexión con el servidor');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const cancelarEdicion = () => {
     setModoEdicion(false);
@@ -178,9 +181,8 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
   };
 
   const agregarProductoACombo = (producto) => {
-    // Necesitamos el id del producto para guardarlo después
     const nuevoProducto = {
-      id: producto.id,           // ← guardamos el ID
+      id: producto.id,
       nombre: producto.nombre,
       codigo: producto.codigo || '',
       cantidad: 1,
@@ -202,6 +204,62 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
   const verificarDisponibilidad = (productoNombre, cantidadNecesaria) => {
     const producto = productos.find(p => p.nombre === productoNombre);
     return producto && producto.cantidad >= cantidadNecesaria;
+  };
+
+  // Función para eliminar combo
+  const confirmDeleteCombo = (combo) => {
+    setComboToDelete(combo);
+    setShowDeleteConfirm(true);
+  };
+
+  const deleteCombo = async () => {
+    if (!comboToDelete) return;
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('No hay sesión activa. Inicie sesión nuevamente.');
+      setShowDeleteConfirm(false);
+      setComboToDelete(null);
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await fetch(`http://localhost:5228/api/combo/${comboToDelete.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        // Eliminar del estado local
+        const combosActualizados = combos.filter(c => c.id !== comboToDelete.id);
+        setCombosLocal(combosActualizados);
+        if (setCombos) setCombos(combosActualizados);
+        
+        // Si el combo eliminado estaba seleccionado, limpiar selección
+        if (comboSeleccionado?.id === comboToDelete.id) {
+          setComboSeleccionado(null);
+        }
+        
+        // Registrar en historial
+        onAgregarAlHistorial('eliminacion', 'Combo Eliminado', 
+          `Se eliminó el combo ${comboToDelete.nombre}`);
+        
+        setShowDeleteConfirm(false);
+        setComboToDelete(null);
+        window.location.reload();
+        alert('Combo eliminado correctamente');
+      } else {
+        const errorText = await response.text();
+        alert(`Error al eliminar: ${errorText}`);
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error de conexión con el servidor');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const combosFiltrados = combos.filter(combo =>
@@ -261,12 +319,15 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
               <button onClick={(e) => { e.stopPropagation(); modificarComposicion(combo); }} className="px-3 py-1.5 border-2 border-yellow-500 bg-yellow-50 text-yellow-700 font-bold rounded-lg hover:bg-yellow-100 text-xs">
                 Modificar
               </button>
+              <button onClick={(e) => { e.stopPropagation(); confirmDeleteCombo(combo); }} className="px-3 py-1.5 border-2 border-red-500 bg-red-50 text-red-700 font-bold rounded-lg hover:bg-red-100 text-xs">
+                Eliminar
+              </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Detalle del combo seleccionado */}
+      {/* Detalle del combo seleccionado (sin cambios) */}
       {comboSeleccionado && !modoEdicion && (
         <div className="mt-8 border-t-2 border-green-200 pt-6">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
@@ -311,9 +372,9 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
         </div>
       )}
 
-      {/* Modo edición de composición */}
+      {/* Modo edición de composición (sin cambios) */}
       {modoEdicion && comboEditando && (
-        <div className="mt-8 border-t-2 border-yellow-200 pt-6">
+        <div className="mt-8 border-t-2 border-yellow-200 pt-6 overflow-visible">
           <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
             <h3 className="text-xl sm:text-2xl font-bold text-yellow-700">Editando: {comboEditando.nombre}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full sm:w-auto">
@@ -337,7 +398,7 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
                 className="w-full p-3 border-2 border-yellow-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-200 focus:border-yellow-400"
               />
               {productosEncontrados.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 max-h-40 overflow-y-auto bg-white border-2 border-yellow-200 rounded-lg shadow-lg">
+                <div className="absolute z-50 w-full mt-1 max-h-40 overflow-y-auto bg-white border-2 border-yellow-200 rounded-lg shadow-lg">
                   {productosEncontrados.map(producto => (
                     <div key={producto.id} onClick={() => agregarProductoACombo(producto)} className="p-2 hover:bg-yellow-50 cursor-pointer border-b last:border-b-0">
                       <span className="font-medium">{producto.nombre}</span>
@@ -391,6 +452,43 @@ const InterfazCombos = ({ setCombos, productos, onModificarCombo, onAgregarAlHis
           + Nuevo Combo
         </button>
       </div>
+
+      {/* Modal de confirmación para eliminar combo */}
+      {showDeleteConfirm && comboToDelete && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setShowDeleteConfirm(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border-2 border-red-400">
+            <h3 className="text-2xl font-extrabold text-red-700 mb-4">Confirmar Eliminación</h3>
+            <p className="text-lg font-bold text-gray-800 mb-2">
+              ¿Está seguro que desea ELIMINAR el combo?
+            </p>
+            <div className="bg-red-50 p-4 rounded-lg mb-4 border-2 border-red-300">
+              <p className="font-extrabold text-gray-900 text-base">Combo: {comboToDelete.nombre}</p>
+              <p className="text-base text-gray-700">Cantidad de productos: {comboToDelete.productos.length}</p>
+              <p className="text-base text-gray-700">Acción: eliminar definitivamente del inventario</p>
+            </div>
+            <p className="text-red-700 text-base font-bold mb-6">
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 border-2 border-gray-500 bg-gray-50 text-gray-700 font-bold rounded-lg hover:bg-gray-100"
+                disabled={deleting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={deleteCombo}
+                className="px-4 py-2 border-2 border-red-700 bg-red-700 text-white font-bold rounded-lg hover:bg-red-800"
+                disabled={deleting}
+              >
+                {deleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

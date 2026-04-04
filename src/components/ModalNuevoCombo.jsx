@@ -87,6 +87,7 @@ const ModalNuevoCombo = ({ productos, onCrearCombo, onCerrar, usuario }) => {
         // Si el backend devuelve el combo creado, podrías usarlo, pero por ahora llamamos al callback
         onCrearCombo(nombreCombo, productosSeleccionados);
         onCerrar();
+        window.location.reload();
       } else {
         const errorText = await response.text();
         setError(errorText || 'Error al crear el combo');

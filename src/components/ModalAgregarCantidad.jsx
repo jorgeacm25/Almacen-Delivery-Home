@@ -62,6 +62,7 @@ const ModalAgregarCantidad = ({ producto, onAgregar, onCerrar, usuario }) => {
         // Actualizar estado local en App (cantidad y fecha de vencimiento)
         onAgregar(producto.id, cantidadAgregar, nuevaFechaVencimiento);
         onCerrar();
+        window.location.reload();
       } else {
         const errorText = await response.text();
         alert(`Error al actualizar stock: ${errorText}`);

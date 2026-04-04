@@ -108,6 +108,7 @@ const Formulario = ({ onAgregarProducto, onCerrar, usuario }) => {
           proveedor: usuario?.username || 'Sistema'
         });
         onCerrar();
+        window.location.reload();
       } else {
         const errorText = await response.text();
         alert(`Error al guardar: ${errorText}`);

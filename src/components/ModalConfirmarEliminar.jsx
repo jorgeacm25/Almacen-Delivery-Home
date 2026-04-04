@@ -19,6 +19,7 @@ const ModalConfirmarEliminar = ({ producto, onEliminar, onCerrar }) => {
       if (response.ok) {
         onEliminar(producto.id);
         onCerrar();
+        window.location.reload();
       } else {
         const errorText = await response.text();
         setError(errorText || `Error ${response.status}: No se pudo eliminar`);

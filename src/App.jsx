@@ -88,6 +88,12 @@ function App() {
   const [historial, setHistorial] = useState(historialData);
 
   useEffect(() => {
+  const usuarioGuardado = localStorage.getItem('usuario');
+  if (usuarioGuardado) {
+    setUsuario(JSON.parse(usuarioGuardado));
+  }
+}, []);
+  useEffect(() => {
     const cargarProductos = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -164,11 +170,12 @@ function App() {
   };
 
   const handleLoginTrabajador = (datosUsuario) => {
-    setUsuario(datosUsuario);
-    setMostrarModalAuth(false);
-    setPasoRegistro('');
-    agregarAlHistorial('login', 'Inicio de Sesión', `Usuario ${datosUsuario.nombre} inició sesión`);
-  };
+  setUsuario(datosUsuario);
+  localStorage.setItem('usuario', JSON.stringify(datosUsuario)); // Guardar usuario
+  setMostrarModalAuth(false);
+  setPasoRegistro('');
+  agregarAlHistorial('login', 'Inicio de Sesión', `Usuario ${datosUsuario.nombre} inició sesión`);
+};
 
   const handleAuthGerenteExitoso = () => {
     setPasoRegistro('registro');
@@ -182,12 +189,13 @@ function App() {
   };
 
   const handleLogout = () => {
-    agregarAlHistorial('logout', 'Cierre de Sesión', `Usuario ${usuario?.nombre} cerró sesión`);
-    setUsuario(null);
-    navigate(APP_ROUTES.DASHBOARD);
-    setMostrarFormulario(false);
-    localStorage.removeItem('token');
-  };
+  agregarAlHistorial('logout', 'Cierre de Sesión', `Usuario ${usuario?.nombre} cerró sesión`);
+  setUsuario(null);
+  localStorage.removeItem('token');
+  localStorage.removeItem('usuario'); // Eliminar usuario guardado
+  navigate(APP_ROUTES.DASHBOARD);
+  setMostrarFormulario(false);
+};
 
   const abrirRegistro = () => {
     setPasoRegistro('auth');

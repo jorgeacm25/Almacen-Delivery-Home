@@ -107,6 +107,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
             { motivo: motivo, cliente: cliente || '' }
           );
           onCerrar();
+          window.location.reload();
         } else {
           const errorText = await response.text();
           setError(errorText || 'Error al registrar la salida');
@@ -179,6 +180,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
             { motivo: motivo, cliente: cliente || '' }
           );
           onCerrar();
+          window.location.reload();
         } else {
           const errorText = await response.text();
           setError(errorText || 'Error al registrar la salida del combo');

@@ -9,27 +9,29 @@ const InterfazHistorial = () => {
   const [detalle, setDetalle] = useState(null);
 
   useEffect(() => {
-    const fetchHistorial = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:5228/api/history', {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
-        if (!res.ok) throw new Error(`Error ${res.status}`);
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          setItems(data);
-        } else {
-          throw new Error('La respuesta no es un array');
-        }
-      } catch (err) {
-        setError(err.message);
-      } finally {
-        setCargando(false);
+  const fetchHistorial = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('http://localhost:5228/api/history', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        // Ordenar de más antiguo a más reciente
+        const sorted = [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        setItems(sorted);
+      } else {
+        throw new Error('La respuesta no es un array');
       }
-    };
-    fetchHistorial();
-  }, []);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargando(false);
+    }
+  };
+  fetchHistorial();
+}, []);
 
   const getEstilo = (tipo) => {
     const t = (tipo || '').toLowerCase();

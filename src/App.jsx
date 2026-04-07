@@ -111,7 +111,7 @@ function App() {
           fechaVencimiento: prod.endDate ? prod.endDate.split('T')[0] : null,
           operador: prod.nameUserorAdmin,
           categoria: prod.category || obtenerCategoriaAutomatica(prod.name),
-          proveedor: prod.nameUserorAdmin || 'Sin proveedor',
+          proveedor: prod.provider || 'Sin proveedor',
           fechaEntrada: new Date().toISOString().split('T')[0],
         }));
         setProductos(productosMapeados);

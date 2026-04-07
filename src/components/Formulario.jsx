@@ -11,6 +11,7 @@ const Formulario = ({ onAgregarProducto, onCerrar, usuario }) => {
   const [fechaVencimiento, setFechaVencimiento] = useState(''); 
   const [error, setError] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [provider , setProvider] = useState('');
 
   const validarPasoActual = () => {
     if (pasoActual === 1) {
@@ -76,11 +77,12 @@ const Formulario = ({ onAgregarProducto, onCerrar, usuario }) => {
     const payload = {
       productName: nombre,
       quantity: parseInt(cantidad),
-      unity: unidad,        // 👈 usamos la unidad seleccionada
+      unity: unidad,        
       endDate: endDate,
       adminId: null,
       userId: userId,
-      category: categoria
+      category: categoria,
+      provider : provider
     };
 
     setLoading(true);
@@ -284,6 +286,19 @@ const Formulario = ({ onAgregarProducto, onCerrar, usuario }) => {
               </div>
               <div className="border-2 border-gray-300 bg-gray-100 p-3 rounded-lg text-base">
                 {usuario?.nombre || usuario?.username || 'No especificado'}
+              </div>
+              <div>
+                <label htmlFor="Provider" className="block text-gray-900 uppercase font-extrabold text-base mb-2">
+                  Proveedor <span className="text-red-600">*</span>
+                </label>
+                <input 
+                  type="text" 
+                  id="Provider"
+                  className="w-full px-3 py-3 border-2 border-orange-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 focus:border-orange-600 transition-all text-base bg-white"
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value)}
+                  disabled={loading}
+                />
               </div>
             </div>
           </>

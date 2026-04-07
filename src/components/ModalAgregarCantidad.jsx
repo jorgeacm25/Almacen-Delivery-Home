@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 const ModalAgregarCantidad = ({ producto, onAgregar, onCerrar, usuario }) => {
   const [cantidad, setCantidad] = useState('');
+  const [provider , setProvider] = useState('');
   const [nuevaFechaVencimiento, setNuevaFechaVencimiento] = useState(producto.fechaVencimiento || '');
   const [error, setError] = useState('');
   const [confirmando, setConfirmando] = useState(false);
@@ -44,7 +45,8 @@ const ModalAgregarCantidad = ({ producto, onAgregar, onCerrar, usuario }) => {
       quantity: nuevaCantidad,
       endDate: endDate,
       adminId: null,
-      userId: userId
+      userId: userId,
+      provider: provider
     };
 
     setLoading(true);
@@ -132,7 +134,19 @@ const ModalAgregarCantidad = ({ producto, onAgregar, onCerrar, usuario }) => {
                 Dejar vacío para mantener la fecha actual o eliminarla (según el backend).
               </p>
             </div>
-
+            <div className="mb-4">
+              <label className="block text-gray-800 font-extrabold text-base mb-2">
+                Nombre del Proveedor
+              </label>
+              <input
+                type="text"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                className="w-full p-3 border-2 border-green-500 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-600 text-lg"
+                placeholder="Merlin"
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <button
                 type="button"

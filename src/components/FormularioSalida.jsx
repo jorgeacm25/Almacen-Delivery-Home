@@ -6,10 +6,11 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
   const [itemsProductos, setItemsProductos] = useState([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState(null);
   const [cantidadProducto, setCantidadProducto] = useState(1);
+  const [cantidadProductoTexto, setCantidadProductoTexto] = useState('1'); // texto temporal
   const [terminoBusquedaProducto, setTerminoBusquedaProducto] = useState('');
   const [productosFiltrados, setProductosFiltrados] = useState([]);
 
-  // Estados para combo (sección combo, simplificada pero funcional)
+  // Estados para combo
   const [comboSeleccionado, setComboSeleccionado] = useState(null);
   const [productosComboEditables, setProductosComboEditables] = useState([]);
   const [productosExtra, setProductosExtra] = useState([]);
@@ -21,11 +22,10 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
   const [cliente, setCliente] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  // Inicializar fecha con formato datetime-local (YYYY-MM-DDThh:mm)
- const [salidaDate, setSalidaDate] = useState(() => {
-  const today = new Date();
-  return today.toISOString().split('T')[0]; // "2026-04-09"
-});
+  const [salidaDate, setSalidaDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
 
   // Filtrar productos para la sección de productos
   useEffect(() => {
@@ -81,12 +81,14 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
         id: productoSeleccionado.id,
         nombre: productoSeleccionado.nombre,
         cantidad: cantidadProducto,
+        cantidadTexto: cantidadProducto.toString(),
         unidad: productoSeleccionado.unidad,
         stock: productoSeleccionado.cantidad
       }
     ]);
     setProductoSeleccionado(null);
     setCantidadProducto(1);
+    setCantidadProductoTexto('1');
     setTerminoBusquedaProducto('');
     setError('');
   };
@@ -103,6 +105,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
     }
     const nuevos = [...itemsProductos];
     nuevos[index].cantidad = nuevaCantidad;
+    nuevos[index].cantidadTexto = nuevaCantidad.toString();
     setItemsProductos(nuevos);
     setError('');
   };
@@ -118,6 +121,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
       id: p.id,
       nombre: p.nombre,
       cantidad: p.cantidad,
+      cantidadTexto: p.cantidad.toString(),
       unidad: p.unidad,
       stock: productos.find(prod => prod.id === p.id)?.cantidad || 0,
       incluido: true
@@ -142,12 +146,14 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
     if (nuevaCantidad <= 0) {
       const nuevos = [...productosComboEditables];
       nuevos[index].cantidad = 0;
+      nuevos[index].cantidadTexto = '0';
       nuevos[index].incluido = false;
       setProductosComboEditables(nuevos);
       return;
     }
     const nuevos = [...productosComboEditables];
     nuevos[index].cantidad = nuevaCantidad;
+    nuevos[index].cantidadTexto = nuevaCantidad.toString();
     setProductosComboEditables(nuevos);
     setError('');
   };
@@ -157,6 +163,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
       id: producto.id,
       nombre: producto.nombre,
       cantidad: 1,
+      cantidadTexto: '1',
       unidad: producto.unidad,
       stock: producto.cantidad,
       incluido: true
@@ -177,6 +184,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
     }
     const nuevos = [...productosExtra];
     nuevos[index].cantidad = nuevaCantidad;
+    nuevos[index].cantidadTexto = nuevaCantidad.toString();
     setProductosExtra(nuevos);
     setError('');
   };
@@ -220,7 +228,6 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
         userId: userId,
         customer: cliente || ''
       };
-      console.log(dateTime)
     } else {
       if (!comboSeleccionado) {
         setError('Debe seleccionar un combo');
@@ -231,7 +238,6 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
         setError('Debe seleccionar al menos un producto del combo o agregar extras');
         return;
       }
-      // Validar stock de todos los productos
       const todosProductos = [
         ...productosComboIncluidos.map(p => ({ id: p.id, cantidad: p.cantidad, stock: p.stock })),
         ...productosExtra.map(p => ({ id: p.id, cantidad: p.cantidad, stock: p.stock }))
@@ -269,23 +275,13 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
       });
 
       if (response.ok) {
-        // ✅ Llamar a onRegistrarSalida con los argumentos correctos
         if (tipoSeleccionado === 'producto') {
-          // Construir los items con la estructura que espera registrarSalidaMultiple
           const itemsParaPadre = itemsProductos.map(item => ({
             producto: { id: item.id, nombre: item.nombre, unidad: item.unidad },
             cantidad: item.cantidad
           }));
           onRegistrarSalida(itemsParaPadre, 'producto', null, { motivo, cliente });
         } else {
-          // Para combo, necesitas construir la estructura adecuada
-          // registrarSalidaMultiple espera items, tipoSalida, comboInfo, datosSalida
-          // En el caso de combo, items sería un array vacío (ya que se maneja internamente)
-          // pero la función padre espera recibir comboInfo y los detalles.
-          // Como tu App.jsx ya tiene lógica para procesar combo en registrarSalidaMultiple,
-          // debemos pasar los datos correctos.
-          // La función padre espera que si tipoSalida === 'combo', el tercer argumento sea comboInfo.
-          // Construimos comboInfo a partir de comboSeleccionado y los productos seleccionados.
           const comboInfo = {
             id: comboSeleccionado.id,
             nombre: comboSeleccionado.nombre,
@@ -301,13 +297,11 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
                 unidad: p.unidad
               }))
             ],
-            cantidadSalida: 1 // Puedes agregar un input para la cantidad de combos si lo deseas
+            cantidadSalida: 1
           };
           onRegistrarSalida([], 'combo', comboInfo, { motivo, cliente });
         }
-        // Cerrar el modal (onCerrar navega al dashboard)
         onCerrar();
-        // No es necesario recargar la página porque la función padre actualiza el estado de productos.
       } else {
         const errorData = await response.json();
         setError(errorData.title || errorData.message || 'Error al registrar la salida');
@@ -365,7 +359,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
           </button>
         </div>
 
-        {/* Campo de fecha - ahora tipo datetime-local */}
+        {/* Campo de fecha */}
         <div className="mb-4">
           <label className="block text-gray-700 font-bold text-sm mb-2">
             Fecha de Salida <span className="text-red-500">*</span>
@@ -433,12 +427,26 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
                   </div>
                   <div className="w-full sm:w-32">
                     <input
-                      type="number"
-                      value={cantidadProducto}
-                      onChange={(e) => setCantidadProducto(parseInt(e.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      value={cantidadProductoTexto}
+                      onChange={(e) => {
+                        let raw = e.target.value;
+                        if (raw === '' || /^\d*[.,]?\d*$/.test(raw)) {
+                          setCantidadProductoTexto(raw);
+                        }
+                      }}
+                      onBlur={() => {
+                        let num = parseFloat(cantidadProductoTexto.replace(',', '.'));
+                        if (isNaN(num)) num = 0;
+                        if (productoSeleccionado && num > productoSeleccionado.cantidad) {
+                          num = productoSeleccionado.cantidad;
+                        }
+                        setCantidadProducto(num);
+                        setCantidadProductoTexto(num.toString());
+                      }}
                       className="w-full p-3 border-2 border-gray-200 rounded-lg"
-                      min="0"
-                      max={productoSeleccionado.cantidad}
+                      placeholder="0"
                     />
                   </div>
                 </div>
@@ -472,12 +480,29 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
                             <td className="border-2 border-red-200 p-2 text-xs">{item.stock}</td>
                             <td className="border-2 border-red-200 p-2 text-xs">
                               <input
-                                type="number"
-                                value={item.cantidad}
-                                onChange={(e) => actualizarCantidadProducto(idx, parseInt(e.target.value) || 0)}
+                                type="text"
+                                inputMode="decimal"
+                                value={item.cantidadTexto}
+                                onChange={(e) => {
+                                  let raw = e.target.value;
+                                  if (raw === '' || /^\d*[.,]?\d*$/.test(raw)) {
+                                    const nuevos = [...itemsProductos];
+                                    nuevos[idx].cantidadTexto = raw;
+                                    setItemsProductos(nuevos);
+                                  }
+                                }}
+                                onBlur={() => {
+                                  let num = parseFloat(item.cantidadTexto.replace(',', '.'));
+                                  if (isNaN(num)) num = 0;
+                                  if (num > item.stock) num = item.stock;
+                                  if (num <= 0) {
+                                    eliminarProducto(idx);
+                                  } else {
+                                    actualizarCantidadProducto(idx, num);
+                                  }
+                                }}
                                 className="w-20 p-1 border border-red-300 rounded text-xs"
-                                min="0"
-                                max={item.stock}
+                                placeholder="0"
                               />
                             </td>
                             <td className="border-2 border-red-200 p-2 text-xs">
@@ -507,7 +532,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
             )}
           </>
         ) : (
-          // Sección combo (completa)
+          // Sección combo
           <div>
             <label className="block text-gray-700 font-bold text-sm mb-2">Seleccionar Combo</label>
             <div className="grid grid-cols-1 gap-3 max-h-60 overflow-y-auto border-2 border-gray-200 rounded-lg p-2 mb-4">
@@ -559,13 +584,25 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
                           <div className="flex items-center gap-3 ml-6">
                             <label className="text-sm text-gray-600">Cantidad:</label>
                             <input
-                              type="number"
-                              value={item.cantidad}
-                              onChange={(e) => actualizarCantidadProductoCombo(idx, parseInt(e.target.value) || 0)}
-                              onFocus={(e) => e.target.select()}
+                              type="text"
+                              inputMode="decimal"
+                              value={item.cantidadTexto}
+                              onChange={(e) => {
+                                let raw = e.target.value;
+                                if (raw === '' || /^\d*[.,]?\d*$/.test(raw)) {
+                                  const nuevos = [...productosComboEditables];
+                                  nuevos[idx].cantidadTexto = raw;
+                                  setProductosComboEditables(nuevos);
+                                }
+                              }}
+                              onBlur={() => {
+                                let num = parseFloat(item.cantidadTexto.replace(',', '.'));
+                                if (isNaN(num)) num = 0;
+                                if (num > item.stock) num = item.stock;
+                                actualizarCantidadProductoCombo(idx, num);
+                              }}
                               className="w-24 p-1 border border-gray-300 rounded text-sm"
-                              min="0"
-                              step="1"
+                              placeholder="0"
                             />
                             <span className="text-xs text-gray-500">
                               Stock: {productoEnStock?.cantidad || 0} {item.unidad}
@@ -627,11 +664,25 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
                       </div>
                       <div className="flex gap-2">
                         <input
-                          type="number"
-                          value={item.cantidad}
-                          onChange={(e) => actualizarCantidadExtra(idx, parseInt(e.target.value) || 0)}
+                          type="text"
+                          inputMode="decimal"
+                          value={item.cantidadTexto}
+                          onChange={(e) => {
+                            let raw = e.target.value;
+                            if (raw === '' || /^\d*[.,]?\d*$/.test(raw)) {
+                              const nuevos = [...productosExtra];
+                              nuevos[idx].cantidadTexto = raw;
+                              setProductosExtra(nuevos);
+                            }
+                          }}
+                          onBlur={() => {
+                            let num = parseFloat(item.cantidadTexto.replace(',', '.'));
+                            if (isNaN(num)) num = 0;
+                            if (num > item.stock) num = item.stock;
+                            actualizarCantidadExtra(idx, num);
+                          }}
                           className="w-20 p-1 border border-gray-300 rounded text-sm"
-                          min="0"
+                          placeholder="0"
                         />
                         <button onClick={() => eliminarExtra(idx)} className="text-red-600 text-sm font-bold">Eliminar</button>
                       </div>
@@ -643,7 +694,7 @@ const FormularioSalida = ({ productos, combos, onRegistrarSalida, onCerrar, usua
           </div>
         )}
 
-        {/* Motivo y cliente (comunes) */}
+        {/* Motivo y cliente */}
         <div className="mb-6">
           <label className="block text-gray-700 font-bold text-sm mb-2">
             Motivo de la Salida <span className="text-red-500">*</span>

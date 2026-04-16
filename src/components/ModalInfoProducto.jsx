@@ -14,11 +14,13 @@ const ModalInfoProducto = ({ producto, onCerrar }) => {
         });
         if (!response.ok) throw new Error(`Error ${response.status}`);
         const data = await response.json();
-
+        // Ordenar de más antiguo a más reciente
+        const sorted = [...data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
         const nombreProducto = (producto?.nombre || '').toLowerCase();
 
         // Filtrar entradas que mencionen el producto
-        const filtrados = data.filter(item => {
+        const filtrados = sorted.filter(item => {
           const user = (item.userOrAdminUserName || '').toLowerCase();
           const descripcion = (item.description || '').toLowerCase();
           // Coincide si el nombre del producto está en userOrAdminUserName o en la descripción
